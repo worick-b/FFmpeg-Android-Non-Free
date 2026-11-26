@@ -1,0 +1,143 @@
+name: Build FFmpeg 8.1 Android (Non-Free / Full)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ffmpeg-nonfree:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            arch: aarch64
+            cpu: armv8-a
+            host: aarch64-linux-android
+            clang_target: aarch64-linux-android28
+            vpx_target: arm64-android-gcc
+            oh264_arch: arm64
+          - abi: armeabi-v7a
+            arch: arm
+            cpu: armv7-a
+            host: armv7a-linux-androideabi
+            clang_target: armv7a-linux-androideabi28
+            vpx_target: armv7-android-gcc
+            oh264_arch: arm
+
+    steps:
+      - name: Instalar dependências do sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake build-essential cmake git libtool pkg-config texinfo wget yasm nasm ninja-build zip
+
+      - name: Localizar Android NDK pré-instalado
+        run: |
+          NDK_PATH=$(ls -d /usr/local/lib/android/sdk/ndk/* | sort -V | tail -n 1)
+          echo "NDK=$NDK_PATH" >> $GITHUB_ENV
+          echo "PREFIX=$PWD/build_${{ matrix.abi }}" >> $GITHUB_ENV
+
+      - name: Compilar libfdk-aac, libopus, libmp3lame, libvpx e libopenh264
+        run: |
+          export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+          export PATH="$TOOLCHAIN/bin:$PATH"
+          export AR=$TOOLCHAIN/bin/llvm-ar
+          export CC=$TOOLCHAIN/bin/${{ matrix.clang_target }}-clang
+          export CXX=$TOOLCHAIN/bin/${{ matrix.clang_target }}-clang++
+          export AS=$CC
+          export LD=$CC
+          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+          export STRIP=$TOOLCHAIN/bin/llvm-strip
+          GH="https://github.com"
+
+          git clone --depth 1 "$GH/mstorsjo/fdk-aac.git"
+          cd fdk-aac && autoreconf -fiv
+          ./configure --prefix=$PREFIX --host=${{ matrix.host }} --enable-static --disable-shared --with-pic
+          make -j$(nproc) && make install && cd ..
+
+          git clone --depth 1 "$GH/xiph/opus.git"
+          cd opus && ./autogen.sh
+          ./configure --prefix=$PREFIX --host=${{ matrix.host }} --enable-static --disable-shared --disable-doc --disable-extra-programs
+          make -j$(nproc) && make install && cd ..
+
+          git clone --depth 1 "$GH/lameproject/lame.git"
+          cd lame
+          ./configure --prefix=$PREFIX --host=${{ matrix.host }} --enable-static --disable-shared --disable-frontend
+          make -j$(nproc) && make install && cd ..
+
+          git clone --depth 1 "$GH/webmproject/libvpx.git"
+          cd libvpx
+          ./configure --prefix=$PREFIX --target=${{ matrix.vpx_target }} --disable-examples --disable-tools --disable-docs --disable-unit-tests --enable-vp8 --enable-vp9 --enable-pic
+          make -j$(nproc) && make install && cd ..
+
+          git clone --depth 1 "$GH/cisco/openh264.git"
+          cd openh264
+          make -j$(nproc) OS=android NDKROOT=$NDK TARGET=android-28 ARCH=${{ matrix.oh264_arch }} PREFIX=$PREFIX install-static
+          cd ..
+
+      - name: Compilar FFmpeg 8.1 Estático (Non-Free sem GPL)
+        run: |
+          export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+          export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
+
+          git clone --depth 1 --branch n8.1 "https://github.com/FFmpeg/FFmpeg.git" ffmpeg_src
+          cd ffmpeg_src
+          ./configure \
+            --prefix=$PREFIX \
+            --target-os=android \
+            --arch=${{ matrix.arch }} \
+            --cpu=${{ matrix.cpu }} \
+            --cc=$TOOLCHAIN/bin/${{ matrix.clang_target }}-clang \
+            --cxx=$TOOLCHAIN/bin/${{ matrix.clang_target }}-clang++ \
+            --ar=$TOOLCHAIN/bin/llvm-ar \
+            --ranlib=$TOOLCHAIN/bin/llvm-ranlib \
+            --strip=$TOOLCHAIN/bin/llvm-strip \
+            --nm=$TOOLCHAIN/bin/llvm-nm \
+            --enable-cross-compile \
+            --sysroot=$TOOLCHAIN/sysroot \
+            --extra-cflags="-O3 -flto -I$PREFIX/include -fPIE" \
+            --extra-ldflags="-O3 -flto -L$PREFIX/lib -pie" \
+            --pkg-config-flags="--static" \
+            --enable-nonfree \
+            --enable-static \
+            --disable-shared \
+            --disable-network \
+            --disable-ffplay \
+            --disable-doc \
+            --disable-debug \
+            --enable-mediacodec \
+            --enable-libfdk-aac \
+            --enable-libopenh264 \
+            --enable-libvpx \
+            --enable-libopus \
+            --enable-libmp3lame
+
+          make -j$(nproc)
+          make install
+          $TOOLCHAIN/bin/llvm-strip $PREFIX/bin/ffmpeg
+          $TOOLCHAIN/bin/llvm-strip $PREFIX/bin/ffprobe
+          cp $PREFIX/bin/ffmpeg $PREFIX/bin/libffmpeg.so
+          cp $PREFIX/bin/ffprobe $PREFIX/bin/libffprobe.so
+
+      - name: Empacotar ZIP para Release (${{ matrix.abi }})
+        run: |
+          mkdir -p dist
+          cp build_${{ matrix.abi }}/bin/libffmpeg.so dist/libffmpeg.so
+          cp build_${{ matrix.abi }}/bin/libffprobe.so dist/libffprobe.so
+          cd dist && zip -r ../FFmpeg-8.1-NonFree-${{ matrix.abi }}.zip libffmpeg.so libffprobe.so
+
+      - name: Publicar na aba Releases do KEBAABS
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ffmpeg-nonfree-v8.1
+          name: "FFmpeg 8.1 Android — Non-Free (libfdk-aac / MediaCodec / OpenH264 / VP9)"
+          body: |
+            Binários estáticos do FFmpeg 8.1 (`libffmpeg.so`) e FFprobe 8.1 (`libffprobe.so`) para Android (`arm64-v8a` e `armeabi-v7a`) compilados **sem GPL** (zero conflito de licença com `libfdk-aac`):
+            - **libfdk-aac** (`aac_he_v2` / `aac_he` / `aac_lc`)
+            - **MediaCodec** (`h264_mediacodec` / `hevc_mediacodec` via hardware)
+            - **libopenh264** (fallback H.264 universal por software sob licença BSD)
+            - **libvpx** (VP8 e VP9), **libopus** e **libmp3lame**
+          files: FFmpeg-8.1-NonFree-${{ matrix.abi }}.zip
