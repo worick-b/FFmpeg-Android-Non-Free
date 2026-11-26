@@ -1,4 +1,4 @@
-name: Build FFmpeg 8.1 Android (Non-Free / Full)
+name: Build FFmpeg 8.1 Android Non-Free
 
 on:
   workflow_dispatch:
@@ -78,7 +78,7 @@ jobs:
           make -j$(nproc) OS=android NDKROOT=$NDK TARGET=android-28 ARCH=${{ matrix.oh264_arch }} PREFIX=$PREFIX install-static
           cd ..
 
-      - name: Compilar FFmpeg 8.1 Estático (Non-Free sem GPL)
+      - name: Compilar FFmpeg 8.1 Estático
         run: |
           export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
           export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
@@ -129,13 +129,13 @@ jobs:
           cp build_${{ matrix.abi }}/bin/libffprobe.so dist/libffprobe.so
           cd dist && zip -r ../FFmpeg-8.1-NonFree-${{ matrix.abi }}.zip libffmpeg.so libffprobe.so
 
-      - name: Publicar na aba Releases do KEBAABS
+      - name: Publicar na aba Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ffmpeg-nonfree-v8.1
           name: "FFmpeg 8.1 Android — Non-Free (libfdk-aac / MediaCodec / OpenH264 / VP9)"
           body: |
-            Binários estáticos do FFmpeg 8.1 (`libffmpeg.so`) e FFprobe 8.1 (`libffprobe.so`) para Android (`arm64-v8a` e `armeabi-v7a`) compilados **sem GPL** (zero conflito de licença com `libfdk-aac`):
+            Binários estáticos do FFmpeg 8.1 (`libffmpeg.so`) e FFprobe 8.1 (`libffprobe.so`) (`arm64-v8a` e `armeabi-v7a`):
             - **libfdk-aac** (`aac_he_v2` / `aac_he` / `aac_lc`)
             - **MediaCodec** (`h264_mediacodec` / `hevc_mediacodec` via hardware)
             - **libopenh264** (fallback H.264 universal por software sob licença BSD)
