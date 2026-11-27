@@ -11,8 +11,7 @@
   * `libopus` (Opus)
   * `libmp3lame` (MP3)
 - **Video:**
-  * `MediaCodec` (Hardware-accelerated `h264_mediacodec` and `hevc_mediacodec`)
-  * `libopenh264` (Universal software H.264 / AVC fallback under BSD license)
+  * `libopenh264` (Software H.264 / AVC under BSD license)
   * `libvpx` (VP8 and VP9 / WebM)
 - **Native Filters and Formats:**
   * Native decoding for H.265 (HEVC), AV1, AVIF, WebP, MKV, MP4, AVI, OGV, FLAC, WAV, OGG, and WMA
