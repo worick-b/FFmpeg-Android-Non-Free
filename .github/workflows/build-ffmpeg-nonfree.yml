@@ -136,9 +136,8 @@ jobs:
           tag_name: ffmpeg-nonfree-v8.1
           name: "FFmpeg 8.1 Android — Non-Free (libfdk-aac / MediaCodec / OpenH264 / VP9)"
           body: |
-            Binários estáticos do FFmpeg 8.1 (`libffmpeg.so`) e FFprobe 8.1 (`libffprobe.so`) (`arm64-v8a` e `armeabi-v7a`):
+            Binários estáticos do FFmpeg 8.1 (`libffmpeg.so`) e FFprobe 8.1 (`libffprobe.so`):
             - **libfdk-aac** (`aac_he_v2` / `aac_he` / `aac_lc`)
-            - **MediaCodec** (`h264_mediacodec` / `hevc_mediacodec` via hardware)
-            - **libopenh264** (fallback H.264 universal por software sob licença BSD)
+            - **libopenh264** (H.264 por software sob licença BSD)
             - **libvpx** (VP8 e VP9), **libopus** e **libmp3lame**
           files: FFmpeg-8.1-NonFree-${{ matrix.abi }}.zip
