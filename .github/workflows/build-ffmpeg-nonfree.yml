@@ -110,7 +110,6 @@ jobs:
             --disable-ffplay \
             --disable-doc \
             --disable-debug \
-            --enable-mediacodec \
             --enable-libfdk-aac \
             --enable-libopenh264 \
             --enable-libvpx \
