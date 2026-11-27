@@ -76,6 +76,8 @@ jobs:
           git clone --depth 1 "$GH/cisco/openh264.git"
           cd openh264
           make -j$(nproc) OS=android NDKROOT=$NDK TARGET=android-28 ARCH=${{ matrix.oh264_arch }} PREFIX=$PREFIX install-static
+          mkdir -p $PREFIX/lib/pkgconfig
+          printf "prefix=%s\nexec_prefix=\${prefix}\nlibdir=\${prefix}/lib\nincludedir=\${prefix}/include\n\nName: OpenH264\nDescription: OpenH264 Video Codec\nVersion: 2.5.0\nLibs: -L\${libdir} -lopenh264 -lc++_static -lc++abi -lm\nCflags: -I\${includedir}\n" "$PREFIX" > $PREFIX/lib/pkgconfig/openh264.pc
           cd ..
 
       - name: Compilar FFmpeg 8.1 Estático
@@ -83,7 +85,7 @@ jobs:
           export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
           export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
 
-          git clone --depth 1 --branch n8.1 "https://github.com/FFmpeg/FFmpeg.git" ffmpeg_src
+          git clone --depth 1 --branch n8.1 "https://github.com" ffmpeg_src
           cd ffmpeg_src
           ./configure \
             --prefix=$PREFIX \
